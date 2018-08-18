@@ -29,19 +29,19 @@ def fact(n):
 
 def nearest_power_less_than(n, target):
     best_m = n
-    kmax = int(math.log(n, 2)) + 1
+    kmax = int(math.floor(math.log(n, 2)))
 
     # minimize m: the distance from n
-    for k in range(2, kmax):
-        x = math.floor(n ** (1/k))     # a root
-        m = abs(target - math.pow(x, k))
-        if m < best_m:
+    for k in range(2, kmax + 1):
+        x = math.floor(math.pow(n, 1.0/k))
+        m = target - math.pow(x, k)
+        if abs(m) < best_m:
             best_m = m
             best_k = k
             best_x = x
 
     # x^k is m distance from n
-    return (int(best_m), best_x, best_k)
+    return (int(best_m), int(best_x), best_k)
 
 def nearest_power(n):
     (m1, x1, k1) = nearest_power_less_than(n, n)
@@ -106,5 +106,5 @@ if __name__ == "__main__":
 #        print("[{}, ({}, {})],".format(i, z[0], z[1]))
 
     for i in range(10, 100):
-        z = nearest_power_less_than(i, i)
+        z = nearest_power(i)
         print("    [{}, ({}, {}, {})],".format(i, z[0], z[1], z[2]))
