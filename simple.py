@@ -98,15 +98,15 @@ def gen_pow():
 
 class Operation:
     def __init__(self, val, n, m):
-        self.n = n
-        self.m = m
-        self.val = val
+        self.n = int(n)
+        self.m = int(m)
+        self.val = int(val)
         self.cost = len(self.toStr())
 
 class OpPow(Operation):
     def __init__(self, n):
         (val, m, self.x, self.y) = nearest_power(n)
-        super().__init__(val, n, m)
+        super().__init__(val, abs(n-val), m)
 
     def toStr(self):
         return "{}^{}".format(self.x, self.y)
@@ -114,7 +114,7 @@ class OpPow(Operation):
 class OpFact(Operation):
     def __init__(self, n):
         (val, m) = largest_fact_less_than(n)
-        super().__init__(val, n, m)
+        super().__init__(val, abs(n-val), m)
 
     def toStr(self):
         return "{}!".format(self.m)
@@ -131,18 +131,41 @@ allfuncs = [
     OpPow
 ]
 
+# How to balance cost vs m?
+def reduce_knapsack(op, node):
+    if op.n < 10:
+        return
+
+    tryfuncs = []
+    for func in allfuncs:
+        newop = func(op.n)
+        tryfuncs.append(newop)
+
+    best_cost = op.n
+    for func in tryfuncs:
+        if func.cost < best_cost:
+            best_cost = func.cost
+            best_func = func
+
+    newnode = Node(best_func.toStr(), parent=node, op=best_func)
+    reduce_knapsack(best_func, newnode)
+
+def reduce_full(op, node):
+    if op.n < 10:
+        return
+    for func in allfuncs:
+        newop = func(op.n)
+        newnode = Node(newop.toStr(), parent=node, op=newop)
+        reduce_full(newop, newnode)
+        # TODO: reduce x, y, and m for pow
+        # TODO: more combiner ops than +
+
+def main(n):
+    rootop = OpIdentity(n)
+    rootnode = Node("root", op=rootop)
+    reduce_full(rootop, rootnode)
+    for pre, fill, node in RenderTree(rootnode):
+        print("{}{} n:{} z:{} m:{}".format(pre, node.name, node.op.n, node.op.val, node.op.m))
+
 if __name__ == "__main__":
-    gen_pow()
-
-if __name__ == "__main__z":
-    n = 40
-    x = OpIdentity(n)
-
-    root = Node("root", op=x)
-
-    for op in allfuncs:
-        x = op(n)
-        Node(x.toStr(), parent=root, op=x)
-
-    for pre, fill, node in RenderTree(root):
-        print("%s%s  %s %s" % (pre, node.name, node.op.n, node.op.val))
+    main(5150)
