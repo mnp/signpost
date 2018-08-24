@@ -8,8 +8,12 @@ Simplifying assupmtions for first experiment.
   3. A small set of operations.
 '''
 
-from anytree import Node, RenderTree
+# might need
+#  LANG=en_US.utf8
+
+from anytree import Node, RenderTree, PreOrderIter
 import math
+import sys
 
 fact_cache = {}
 
@@ -167,5 +171,23 @@ def main(n):
     for pre, fill, node in RenderTree(rootnode):
         print("{}{} n:{} z:{} m:{}".format(pre, node.name, node.op.n, node.op.val, node.op.m))
 
+    best_soln = ''
+    best_slen = 999999
+    for node in PreOrderIter(rootnode):
+        if node.is_leaf:
+            terms = [ pathnode.name for pathnode in node.path ][1:]
+            if node.op.n > 0:
+                terms += [str(node.op.n)]
+            soln = " + ".join(terms)
+            slen = len(soln)
+            if slen < best_slen:
+                best_soln = soln
+                best_slen = slen
+
+            print("{}: {}".format(slen, soln))
+
+    print()
+    print(best_soln)
+
 if __name__ == "__main__":
-    main(5150)
+    main(sys.argv[1])
