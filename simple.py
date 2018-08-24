@@ -9,7 +9,7 @@ Simplifying assupmtions for first experiment.
 '''
 
 # might need
-#  LANG=en_US.utf8
+#  LANG=en_US.utf8  or LANG=UTF-8 on osx?
 
 from anytree import Node, RenderTree, PreOrderIter
 import math
@@ -70,25 +70,37 @@ def nearest_power(n):
         power_cache[n] = (z2, m2, x2, k2)
         return (z2, m2, x2, k2)
 
-def largest_fact_less_than(n):
-    best_m = n
-    best_fact = 1
 
-    if n >= 24:
-        for i in range(2, int(math.sqrt(n))+1):
-            fact_i = fact(i)
-            if fact_i <= n:
-                best_m = i
-                best_fact = fact_i
+def largest_fact_less_than(target):
+    '''Returns (a, n, r) such that an! + r = target'''
+    best_r = target
+    best_fact = 1
+    best_n = 0
+
+    if target >= 24:
+        for n in range(4, int(math.sqrt(target))+1):
+            # sterling = math.sqrt( 2 * math.pi * n) * (n/math.e)**n
+            tryfact = fact(n)
+            if tryfact <= target:
+                best_fact = tryfact
+                best_r = target - tryfact
+                best_n = n
             else:
                 break
-    elif n >= 6:
-        best_m = 3
+    elif target >= 6:
+        best_r = target - 6
         best_fact = 6
-    elif n >= 2:
-        best_m = 2
+    elif target >= 2:
+        best_r = target - 2
         best_fact = 2
-    return (best_fact, best_m)
+
+    # Now, how about multiples, ie: n = ax! + r
+    if best_fact < best_r:
+        mult = math.floor(target / best_fact)
+        best_r = target - mult * best_fact
+    else:
+        mult = 1
+    return (mult, best_n, best_r)
 
 def gen_fact():
     for i in range(1, 130):
@@ -190,4 +202,6 @@ def main(n):
     print(best_soln)
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+#    print(largest_fact_less_than(50))
+    gen_fact()
+#    main(sys.argv[1])
