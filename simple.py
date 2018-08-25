@@ -195,7 +195,7 @@ def main(n):
             if node.op.n > 0:
                 terms += [str(node.op.n)]
             soln = " + ".join(terms)
-`            slen = len(soln)
+            slen = len(soln)
             if slen < best_slen:
                 best_soln = soln
                 best_slen = slen
@@ -204,25 +204,6 @@ def main(n):
 
     print()
     print(best_soln)
-
-def expr_experiment():
-    # 1 * 2! - 3 * 4^5 + 1
-
-    root = Node("N")
-    plus = Node("+", parent=root)
-    t1   = Node("*", parent=plus)
-    one  = Node("1", parent=t1)
-    bang = Node("!", parent=t1)
-    two  = Node("2", parent=bang)
-    t2   = Node("*", parent=plus)
-    t2m  = Node("3", parent=t2)
-    fxy  = Node("^", parent=t2m)
-    four = Node("4", parent=fxy)
-    four = Node("5", parent=fxy)
-    one  = Node("1", parent=plus)
-
-    for pre, fill, node in RenderTree(root):
-        print("{}{}".format(pre, node.name))
 
 if __name__ == "__main__":
     start = time.time()
