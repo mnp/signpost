@@ -12,24 +12,11 @@ Simplifying assupmtions for first experiment.
 #  LANG=en_US.utf8  or LANG=UTF-8 on osx?
 
 from anytree import Node, RenderTree, PreOrderIter
+
+import functools
 import math
 import sys
-
-fact_cache = {}
-
-def fact(n):
-    global fact_cache
-    if n in fact_cache:
-        ans = fact_cache[n]
-    elif n < 2:
-        ans = 1
-        fact_cache[n] = ans
-    else:
-        ans = 1
-        for i in range(2, n+1):
-            ans *= i
-        fact_cache[n] = ans
-    return ans
+import time
 
 def nearest_power_less_than(n, target):
     best_m = n
@@ -50,27 +37,20 @@ def nearest_power_less_than(n, target):
     # x^k is m distance from n
     return (int(best_z), int(best_m), int(best_x), best_k)
 
-power_cache = {}
 
 # Bad, but good enough to get the tree search working, then...
 # TODO: Best algorithm here
 # https://math.stackexchange.com/questions/298044/given-an-integer-how-can-i-detect-the-nearest-integer-perfect-power-efficiently#2219230
+@functools.lru_cache(maxsize=None)
 def nearest_power(n):
-    global power_cache
-    if n in power_cache:
-        return power_cache[n]
-
     (z1, m1, x1, k1) = nearest_power_less_than(n, n)
     (z2, m2, x2, k2) = nearest_power_less_than(n + m1 + 1, n)
-
     if m1 < m2:
-        power_cache[n] = (z1, m1, x1, k1)
         return (z1, m1, x1, k1)
     else:
-        power_cache[n] = (z2, m2, x2, k2)
         return (z2, m2, x2, k2)
 
-
+@functools.lru_cache(maxsize=None)
 def largest_fact_less_than(target):
     '''Returns (a, n, r) such that an! + r = target'''
     best_r = target
@@ -80,7 +60,7 @@ def largest_fact_less_than(target):
     if target >= 24:
         for n in range(4, int(math.sqrt(target))+1):
             # sterling = math.sqrt( 2 * math.pi * n) * (n/math.e)**n
-            tryfact = fact(n)
+            tryfact = math.factorial(n)
             if tryfact <= target:
                 best_fact = tryfact
                 best_r = target - tryfact
@@ -90,9 +70,11 @@ def largest_fact_less_than(target):
     elif target >= 6:
         best_r = target - 6
         best_fact = 6
+        best_n = 3
     elif target >= 2:
         best_r = target - 2
         best_fact = 2
+        best_n = 2
 
     # Now, how about multiples, ie: n = ax! + r
     if best_fact < best_r:
@@ -100,40 +82,45 @@ def largest_fact_less_than(target):
         best_r = target - mult * best_fact
     else:
         mult = 1
-    return (mult, best_n, best_r)
-
-def gen_fact():
-    for i in range(1, 130):
-        z = largest_fact_less_than(i)
-        print("    [{}, {}],".format(i, str(z)))
-
-def gen_pow():
-    for i in range(10, 100):
-        z = nearest_power(i)
-        print("    [{}, {}],".format(i, z))
+    return (mult, best_fact, best_n, best_r)
 
 class Operation:
-    def __init__(self, val, n, m):
-        self.n = int(n)
-        self.m = int(m)
-        self.val = int(val)
+    def __init__(self, a, n, r):
+        self.n = int(n)         # current target, starts as N at root
+        self.a = int(a)         # multiple
+        self.r = int(r)         # distance to n
         self.cost = len(self.toStr())
 
 class OpPow(Operation):
+    name = "pow"
+    func = nearest_power
+
     def __init__(self, n):
-        (val, m, self.x, self.y) = nearest_power(n)
-        super().__init__(val, abs(n-val), m)
+        (val, r, self.x, self.y) = nearest_power(n)
+        super().__init__(1, abs(n-val), r)
 
     def toStr(self):
-        return "{}^{}".format(self.x, self.y)
+        if self.a > 1:
+            astr = str(self.a) + " * "
+        else:
+            astr = ''
+        return "{}{}^{}".format(astr, self.x, self.y)
 
 class OpFact(Operation):
+    name = "fact"
+    func = largest_fact_less_than
+
     def __init__(self, n):
-        (val, m) = largest_fact_less_than(n)
-        super().__init__(val, abs(n-val), m)
+        (a, f, x, r) = largest_fact_less_than(n)
+        self.x = x
+        super().__init__(a, abs(n-f), r)
 
     def toStr(self):
-        return "{}!".format(self.m)
+        if self.a > 1:
+            astr = str(self.a) + " * "
+        else:
+            astr = ''
+        return "{}{}!".format(astr, self.x)
 
 class OpIdentity(Operation):
     def __init__(self, n):
@@ -146,6 +133,23 @@ allfuncs = [
     OpFact,
     OpPow
 ]
+
+def gen_fact():
+    for i in range(1, 130):
+        z = largest_fact_less_than(i)
+        print("    [{}, {}],".format(i, str(z)))
+
+def gen_pow():
+    for i in range(10, 100):
+        z = nearest_power(i)
+        print("    [{}, {}],".format(i, z))
+
+def dump_caches():
+    fmt = "{}\t{}"
+    print(fmt.format("Func", "Cache Info"))
+    print(fmt.format("----", "----------"))
+    for f in allfuncs:
+        print(fmt.format(f.name, f.func.cache_info()))
 
 # How to balance cost vs m?
 def reduce_knapsack(op, node):
@@ -181,7 +185,7 @@ def main(n):
     rootnode = Node("root", op=rootop)
     reduce_full(rootop, rootnode)
     for pre, fill, node in RenderTree(rootnode):
-        print("{}{} n:{} z:{} m:{}".format(pre, node.name, node.op.n, node.op.val, node.op.m))
+        print("{}{} n:{} r:{} a:{}".format(pre, node.name, node.op.n, node.op.r, node.op.a))
 
     best_soln = ''
     best_slen = 999999
@@ -191,17 +195,43 @@ def main(n):
             if node.op.n > 0:
                 terms += [str(node.op.n)]
             soln = " + ".join(terms)
-            slen = len(soln)
+`            slen = len(soln)
             if slen < best_slen:
                 best_soln = soln
                 best_slen = slen
 
-            print("{}: {}".format(slen, soln))
+            print("{:>3}: {}".format(slen, soln))
 
     print()
     print(best_soln)
 
+def expr_experiment():
+    # 1 * 2! - 3 * 4^5 + 1
+
+    root = Node("N")
+    plus = Node("+", parent=root)
+    t1   = Node("*", parent=plus)
+    one  = Node("1", parent=t1)
+    bang = Node("!", parent=t1)
+    two  = Node("2", parent=bang)
+    t2   = Node("*", parent=plus)
+    t2m  = Node("3", parent=t2)
+    fxy  = Node("^", parent=t2m)
+    four = Node("4", parent=fxy)
+    four = Node("5", parent=fxy)
+    one  = Node("1", parent=plus)
+
+    for pre, fill, node in RenderTree(root):
+        print("{}{}".format(pre, node.name))
+
 if __name__ == "__main__":
+    start = time.time()
+    main(sys.argv[1])
+    end = time.time()
+    print()
+    print("%0.2f sec " % (end - start))
+    print()
+    dump_caches()
+
 #    print(largest_fact_less_than(50))
-    gen_fact()
-#    main(sys.argv[1])
+#    gen_fact()
