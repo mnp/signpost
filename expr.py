@@ -4,6 +4,9 @@
 #  LANG=en_US.utf8  or LANG=UTF-8 on osx?
 
 import math
+import simple
+import sys
+
 from anytree import Node, RenderTree, PreOrderIter, NodeMixin
 
 class ExprBase(object):
@@ -37,8 +40,8 @@ class Expr2(Expr):
 class Int(Expr):
     '''"Terminals are different - node created here and stitched into parent here.'''
     def __init__(self, n):
-        self.n = n
         super().__init__(str(n))
+        self.n = n
 
     def toStr(self):
         return str(self.n)
@@ -46,37 +49,72 @@ class Int(Expr):
 class Neg(Expr1):
     def __init__(self, a):
         super().__init__("neg", a)
-        self.n = -a.n
 
 class Fact(Expr1):
     def __init__(self, a):
         super().__init__("fact", a)
-        self.n = math.factorial(a.n)
 
 class Mul(Expr2):
     def __init__(self, a, b):
         super().__init__("mul", a, b)
-        self.n = a.n * b.n
 
 class Pow(Expr2):
     def __init__(self, a, b):
         super().__init__("pow", a, b)
-        self.n = a.n ** b.n
 
 class Add(Expr2):
     def __init__(self, a, b):
         super().__init__("add", a, b)
-        self.n = a.n + b.n
 
-root = Mul(Neg(Pow(Int(4), Int(5))), Fact(Add(Int(1), Int(2))))
+class Alt(Expr):
+    def __init__(self, alternates):
+        self.alternates = alternates
 
-for pre, fill, node in RenderTree(root):
-    print("{}{} \t n={}".format(pre, node.name, node.n))
-print()
+    def toStr(self):
+        return [x.toStr() for x in self.alternates]
 
-# wrong - toStr() descends dfs
-#for node in PreOrderIter(root):
+def reduce_power(target_n):
+    (n, remainder, x, y) = simple.nearest_power(target_n)
+    return Add(Pow(Int(x), Int(y)), reduce_int(remainder))
+
+def reduce_fact(target_n):
+    (coeff, fact, n, remainder) = simple.largest_fact_less_than(target_n)
+    inner = Fact(Int(n))
+    if coeff > 1:
+        term = Mul(Int(coeff), inner)
+    else:
+        term = inner
+    if remainder > 0:
+        return Add(term, reduce_int(remainder))
+    else:
+        return term
+
+OPERATIONS = [reduce_power, reduce_fact]
+
+def reduce_int(n):
+    '''examine an int, returning an expr'''
+    if n < 0:
+        return Neg(reduce_int(- n))
+
+    if n <= 10:
+        return Int(n)
+
+    exprs = []
+    for op in OPERATIONS:
+        exprs += [op(n)]
+    return Alt(exprs)
+
+def expr_test():
+    root = Mul(Neg(Pow(Int(4), Int(5))), Fact(Add(Int(1), Int(2))))
+
+    for pre, fill, node in RenderTree(root):
+        print("{}{} \t n={}".format(pre, node.name, node.n))
+    print()
+
+    # good - each expr's toStr() descends dfs (tree might not be necessary for this part)
+    print(root.toStr())
+
+#for node in reduce_int(44):
 #    print(node.toStr())
 
-# good
-print(root.toStr())
+print( reduce_int(int(sys.argv[1])).toStr() )
