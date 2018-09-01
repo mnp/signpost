@@ -24,8 +24,8 @@ class Expr1(Expr):
         self.a = a
         self.children = [a]
 
-    def toStr(self):
-        return "({} {})".format(self.name, self.a.toStr())
+    def sexprStr(self):
+        return "({} {})".format(self.name, self.a.sexprStr())
 
 class Expr2(Expr):
     def __init__(self, name, a, b):
@@ -34,8 +34,11 @@ class Expr2(Expr):
         self.a = a
         self.b = b
 
-    def toStr(self):
-        return "({} {} {})".format(self.name, self.a.toStr(), self.b.toStr())
+    def sexprStr(self):
+        return "({} {} {})".format(self.name, self.a.sexprStr(), self.b.sexprStr())
+
+    def infixStr(self):
+        return "{}{}{}".format(self.a.infixStr(), self.name, self.b.infixStr())
 
 class Int(Expr):
     '''"Terminals are different - node created here and stitched into parent here.'''
@@ -43,47 +46,65 @@ class Int(Expr):
         super().__init__(str(n))
         self.n = n
 
-    def toStr(self):
+    def sexprStr(self):
+        return str(self.n)
+
+    def infixStr(self):
         return str(self.n)
 
 class Neg(Expr1):
     def __init__(self, a):
         super().__init__("neg", a)
 
+    def infixStr(self):
+        return "-" + self.a.infixStr()
+
 class Fact(Expr1):
     def __init__(self, a):
         super().__init__("fact", a)
 
+    def infixStr(self):
+        return self.a.infixStr() + "!"
+
 class Mul(Expr2):
     def __init__(self, a, b):
-        super().__init__("mul", a, b)
+        super().__init__("*", a, b)
 
 class Pow(Expr2):
     def __init__(self, a, b):
-        super().__init__("pow", a, b)
+        super().__init__("^", a, b)
 
 class Add(Expr2):
     def __init__(self, a, b):
-        super().__init__("add", a, b)
+        super().__init__("+", a, b)
+
+    def infixStr(self):
+        return "{} {} {}".format(self.a.infixStr(), self.name, self.b.infixStr())
 
 class Alt(Expr):
     def __init__(self, alternates):
-        self.alternates = alternates
+        self.children = alternates
+        self.name = "alternates"
 
-    def toStr(self):
-        return [x.toStr() for x in self.alternates]
+    def sexprStr(self):
+        return "\n".join([x.sexprStr() for x in self.children])
+
+    def infixStr(self):
+        return "\n".join([x.infixStr() for x in self.children])
 
 def reduce_power(target_n):
     (n, remainder, x, y) = simple.nearest_power(target_n)
-    return Add(Pow(Int(x), Int(y)), reduce_int(remainder))
+    if remainder > 0:
+        return Add(Pow(Int(x), Int(y)), reduce_int(remainder))
+    else:
+        return Pow(Int(x), Int(y))
 
 def reduce_fact(target_n):
     (coeff, fact, n, remainder) = simple.largest_fact_less_than(target_n)
-    inner = Fact(Int(n))
     if coeff > 1:
-        term = Mul(Int(coeff), inner)
+        term = Mul(Int(coeff), Fact(Int(n)))
     else:
-        term = inner
+        term = Fact(Int(n))
     if remainder > 0:
         return Add(term, reduce_int(remainder))
     else:
@@ -111,10 +132,17 @@ def expr_test():
         print("{}{} \t n={}".format(pre, node.name, node.n))
     print()
 
-    # good - each expr's toStr() descends dfs (tree might not be necessary for this part)
-    print(root.toStr())
+    # good - each expr's sexprStr() descends dfs (tree might not be necessary for this part)
+    print(root.sexprStr())
 
-#for node in reduce_int(44):
-#    print(node.toStr())
+root = reduce_int(int(sys.argv[1]))
 
-print( reduce_int(int(sys.argv[1])).toStr() )
+print( root.infixStr() )
+
+print("-----")
+print( root.sexprStr() )
+print("-----")
+
+for pre, fill, node in RenderTree(root):
+#     print(node.infixStr())
+    print("{}{} ".format(pre, node.name))
