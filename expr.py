@@ -135,14 +135,16 @@ def expr_test():
     # good - each expr's sexprStr() descends dfs (tree might not be necessary for this part)
     print(root.sexprStr())
 
-root = reduce_int(int(sys.argv[1]))
+def main(n):
+    root = reduce_int(n)
+    print( root.infixStr() )
+    print("-----")
+    print( root.sexprStr() )
+    print("-----")
 
-print( root.infixStr() )
+    for pre, fill, node in RenderTree(root):
+        #     print(node.infixStr())
+        print("{}{} ".format(pre, node.name))
 
-print("-----")
-print( root.sexprStr() )
-print("-----")
-
-for pre, fill, node in RenderTree(root):
-#     print(node.infixStr())
-    print("{}{} ".format(pre, node.name))
+if __name__ == "__main__":
+    main(int(sys.argv[1]))
